@@ -6,6 +6,7 @@
 * Changelog (date/version/description):
 * 2013-01-14	-	0.1.1	-	initial internal dev version
 * 2013-01-14	-	0.1.2	-	initial testing complete, enabled map chg
+* 2013-01-14	-	0.1.3	-	ADD TIME TO LOG, CHG MAP TO NUCLEUS, del commented out code
 *
 */
 
@@ -14,20 +15,17 @@
 #include <sourcemod>
 
 
-#define PLUGIN_VERSION		"0.1.2"
-#define DEFAULT_NEXT_MAP	"pl_goldrush"	// Map to change to after time limit reached
-#define MAP_IDLE_TIME		10			// Time (minutes) between empty server and map change
+#define PLUGIN_VERSION		"0.1.3"
+#define DEFAULT_NEXT_MAP	"koth_nucleus"	// Map to change to after time limit reached
+#define MAP_IDLE_TIME		10				// Time (minutes) between empty server and map change
 
 
 new Handle:timer = INVALID_HANDLE; 
-//new Handle:new_map;
-//new Handle:map_idle_time;
-//new Handle:Timelimit_H;
-//new Handle:Command_S;
-//new Handle:PlayersC;
-//new status;
 
-//PrintToServer(const String:format[], any:...);
+
+//native FormatTime(String:buffer[], maxlength, const String:format[], stamp=-1);
+//native GetTime(bigStamp[2]={0,0})
+
 
 public Plugin:myinfo =
 {
@@ -40,26 +38,19 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
-//      Command_S = CreateConVar("sm_cm_command","sm_setnextmap","When mp_timelimit is not 0 uses this command - use ma_setnextmap for MAP or sm_setnextmap for sourcemod", FCVAR_PLUGIN);
-//      map_idle_time = CreateConVar("sm_cm_idlechange","5","When no players after this time server changes the map", FCVAR_PLUGIN);
-//      new_map = CreateConVar("sm_cm_nextmap","de_dust2","Name of the map for change without .bsp", FCVAR_PLUGIN);
-//      PlayersC = CreateConVar("sm_cm_players","0","How many players should by to change the map", FCVAR_PLUGIN);
-//      Timelimit_H = FindConVar("mp_timelimit");
-//      AutoExecConfig(true, "automapchanger");
-//      status = 0;
 }
 
 public OnMapStart()
 {
       timer = CreateTimer(60.0, IsServerEmpty ,0, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
-//      status = 0;
 }
 
 public Action:IsServerEmpty(Handle:Timer)
 {
 	new ccount=0;
+	new String:sFormattedTime[22];
 	
-//	new NOfClients = GetClientCount(true);
+	FormatTime(sFormattedTime, sizeof(sFormattedTime), "%m/%d/%Y - %H:%M:%S", GetTime());
 
 	for (new i = 1; i <= MaxClients; i++)
 		if (IsClientInGame(i) && !IsFakeClient(i))
@@ -67,16 +58,14 @@ public Action:IsServerEmpty(Handle:Timer)
             ccount++;
 		}
 		 
-//	if( ccount > GetConVarFloat(PlayersC) || status) 
-
 	if (ccount > 0)
 	{
-		PrintToServer("AutoMapChanger: detected %d clients, continuing.", ccount);
+		PrintToServer("L %s: [AutoMapChanger] Detected %d clients, continuing.", sFormattedTime, ccount);
 		return Plugin_Handled;
 	}
 	else
 	{
-		PrintToServer("AutoMapChanger: detected %d clients, starting empty server countdown.", ccount);
+		PrintToServer("L %s: [AutoMapChanger] Detected %d clients, starting empty server countdown.", sFormattedTime, ccount);
 		KillTimer(timer); 
 		timer = INVALID_HANDLE;
 		timer = CreateTimer( MAP_IDLE_TIME * 60.0, IsTimeLimitReached);
@@ -94,16 +83,9 @@ public OnClientPostAdminCheck(iClient)
 
 public Action:IsTimeLimitReached(Handle:Timer)
 {
-//	new String:str[128];
-//	new String:command_s[64];
-//	new String:mapname[128];	  
-
 	new String:currentmapname[128];	  
-
 	new ccount=0;
 	  
-//	new NOfClients = GetClientCount(true);
-
 	KillTimer(timer);
 	
 	// Check # of players
@@ -113,8 +95,6 @@ public Action:IsTimeLimitReached(Handle:Timer)
             ccount++;
 		}
       
-//	if( ccount > GetConVarFloat(PlayersC) )
-
 	// If we have players again, reset everything and start over
 	if (ccount > 0)
 	{
@@ -125,10 +105,8 @@ public Action:IsTimeLimitReached(Handle:Timer)
 	}
 	else
 	{
-		GetCurrentMap(currentmapname,sizeof(currentmapname));
+		GetCurrentMap(currentmapname, sizeof(currentmapname));
 		
-//		GetConVarString(new_map, str, sizeof(str));
-
 		// If we are already on the default map, no map change
 		if( strcmp(currentmapname, DEFAULT_NEXT_MAP, false) )
 		{ 
@@ -141,17 +119,6 @@ public Action:IsTimeLimitReached(Handle:Timer)
 		{
 			PrintToServer("AutoMapChanger: time limit reached, map change aborted - already on default map (%s)", DEFAULT_NEXT_MAP);
 		}
-		
-//
-//			Don't care about map time limit
-//
-//          else if(GetConVarFloat(Timelimit_H))
-//          {
-//            GetConVarString(Command_S,command_s,sizeof(command_s));
-//            ServerCommand("%s %s",command_s,str);
-//            status = 1;
-//          }
-
 	}
 	return Plugin_Handled;
 }

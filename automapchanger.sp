@@ -8,6 +8,7 @@
 * 2013-01-14	-	0.1.2	-	initial testing complete, enabled map chg
 * 2013-01-14	-	0.1.3	-	ADD TIME TO LOG, CHG MAP TO NUCLEUS, del commented out code
 * 2013-01-14	-	0.1.4	-	add cvar for default map
+* 2013-01-14	-	0.1.5	-	chk when cvar is set if its valid
 *
 */
 
@@ -16,13 +17,14 @@
 #include <sourcemod>
 
 
-#define PLUGIN_VERSION		"0.1.4"
+#define PLUGIN_VERSION		"0.1.5"
 #define DEFAULT_NEXT_MAP	"koth_nucleus"	// Map to change to after time limit reached
 #define MAP_IDLE_TIME		10				// Time (minutes) between empty server and map change
 
 
 new Handle:timer = INVALID_HANDLE; 
 new Handle:cNextMap;
+
 
 public Plugin:myinfo =
 {
@@ -33,15 +35,34 @@ public Plugin:myinfo =
 	url = "http://www.necrophix.com/"
 }
 
+
 public OnPluginStart()
 {
 	cNextMap = CreateConVar("sm_automapchanger_map", DEFAULT_NEXT_MAP, "Name of the map for change without .bsp", FCVAR_PLUGIN);
+	if (cNextMap != INVALID_HANDLE)
+	{
+		HookConVarChange(cNextMap, OncNextMapChange);
+	}
 }
+
 
 public OnMapStart()
 {
       timer = CreateTimer(60.0, IsServerEmpty ,0, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 }
+
+
+public OncNextMapChange(Handle:cvar, const String:oldVal[], const String:newVal[])
+{
+	if( !IsMapValid(newVal) ) 
+	{
+		new String:sFormattedTime[22];
+		FormatTime(sFormattedTime, sizeof(sFormattedTime), "%m/%d/%Y - %H:%M:%S", GetTime());
+		PrintToServer("L %s: [automapchanger.smx] %s is not a valid map.", sFormattedTime, newVal);
+		SetConVarString(cvar, oldVal);
+	}
+}
+
 
 public Action:IsServerEmpty(Handle:Timer)
 {

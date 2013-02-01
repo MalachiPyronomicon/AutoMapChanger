@@ -5,6 +5,7 @@
 * 
 * Changelog (date/version/description):
 * 2013-01-14	-	0.1.1	-	initial internal dev version
+* 2013-01-14	-	0.1.2	-	initial testing complete, enabled map chg
 *
 */
 
@@ -13,7 +14,7 @@
 #include <sourcemod>
 
 
-#define PLUGIN_VERSION		"0.1.1"
+#define PLUGIN_VERSION		"0.1.2"
 #define DEFAULT_NEXT_MAP	"pl_goldrush"	// Map to change to after time limit reached
 #define MAP_IDLE_TIME		10			// Time (minutes) between empty server and map change
 
@@ -132,8 +133,8 @@ public Action:IsTimeLimitReached(Handle:Timer)
 		if( strcmp(currentmapname, DEFAULT_NEXT_MAP, false) )
 		{ 
 			PrintToServer("AutoMapChanger: time limit reached, commencing map change to %s now!", DEFAULT_NEXT_MAP);
-//			if( IsMapValid(DEFAULT_NEXT_MAP) ) 
-//				ServerCommand("changelevel %s", DEFAULT_NEXT_MAP);
+			if( IsMapValid(DEFAULT_NEXT_MAP) ) 
+				ServerCommand("changelevel %s", DEFAULT_NEXT_MAP);
 			return Plugin_Handled;
 		}
 		else

@@ -7,6 +7,7 @@
 * 2013-01-14	-	0.1.1	-	initial internal dev version
 * 2013-01-14	-	0.1.2	-	initial testing complete, enabled map chg
 * 2013-01-14	-	0.1.3	-	ADD TIME TO LOG, CHG MAP TO NUCLEUS, del commented out code
+* 2013-01-14	-	0.1.4	-	add cvar for default map
 *
 */
 
@@ -15,17 +16,13 @@
 #include <sourcemod>
 
 
-#define PLUGIN_VERSION		"0.1.3"
+#define PLUGIN_VERSION		"0.1.4"
 #define DEFAULT_NEXT_MAP	"koth_nucleus"	// Map to change to after time limit reached
 #define MAP_IDLE_TIME		10				// Time (minutes) between empty server and map change
 
 
 new Handle:timer = INVALID_HANDLE; 
-
-
-//native FormatTime(String:buffer[], maxlength, const String:format[], stamp=-1);
-//native GetTime(bigStamp[2]={0,0})
-
+new Handle:cNextMap;
 
 public Plugin:myinfo =
 {
@@ -38,6 +35,7 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
+	cNextMap = CreateConVar("sm_automapchanger_map", DEFAULT_NEXT_MAP, "Name of the map for change without .bsp", FCVAR_PLUGIN);
 }
 
 public OnMapStart()
@@ -60,12 +58,12 @@ public Action:IsServerEmpty(Handle:Timer)
 		 
 	if (ccount > 0)
 	{
-		PrintToServer("L %s: [AutoMapChanger] Detected %d clients, continuing.", sFormattedTime, ccount);
+		PrintToServer("L %s: [automapchanger.smx] Detected %d clients, continuing.", sFormattedTime, ccount);
 		return Plugin_Handled;
 	}
 	else
 	{
-		PrintToServer("L %s: [AutoMapChanger] Detected %d clients, starting empty server countdown.", sFormattedTime, ccount);
+		PrintToServer("L %s: [automapchanger.smx] Detected %d clients, starting empty server countdown.", sFormattedTime, ccount);
 		KillTimer(timer); 
 		timer = INVALID_HANDLE;
 		timer = CreateTimer( MAP_IDLE_TIME * 60.0, IsTimeLimitReached);
@@ -75,7 +73,10 @@ public Action:IsServerEmpty(Handle:Timer)
 
 public OnClientPostAdminCheck(iClient)
 {
-	PrintToServer("AutoMapChanger: detected client connect (index=%d), resetting.", iClient);
+	new String:sFormattedTime[22];
+	
+	FormatTime(sFormattedTime, sizeof(sFormattedTime), "%m/%d/%Y - %H:%M:%S", GetTime());
+	PrintToServer("L %s: [automapchanger.smx] Detected client connect (index=%d), resetting.", sFormattedTime, iClient);
 	KillTimer(timer);
 	timer = CreateTimer(60.0, IsServerEmpty ,0, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 }
@@ -83,8 +84,12 @@ public OnClientPostAdminCheck(iClient)
 
 public Action:IsTimeLimitReached(Handle:Timer)
 {
-	new String:currentmapname[128];	  
+	new String:sCurrentMapName[128];	  
+	new String:sCvarMapName[128];	  
 	new ccount=0;
+	new String:sFormattedTime[22];
+	
+	FormatTime(sFormattedTime, sizeof(sFormattedTime), "%m/%d/%Y - %H:%M:%S", GetTime());
 	  
 	KillTimer(timer);
 	
@@ -98,26 +103,34 @@ public Action:IsTimeLimitReached(Handle:Timer)
 	// If we have players again, reset everything and start over
 	if (ccount > 0)
 	{
-		PrintToServer("AutoMapChanger: detected %d clients, aborting empty server countdown.", ccount);
+		PrintToServer("L %s: [automapchanger.smx] Detected %d clients, aborting empty server countdown.", sFormattedTime, ccount);
 		timer = INVALID_HANDLE;
 		timer = CreateTimer(60.0, IsServerEmpty, 0, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 		return Plugin_Handled;
 	}
 	else
 	{
-		GetCurrentMap(currentmapname, sizeof(currentmapname));
+		GetConVarString(cNextMap, sCvarMapName, sizeof(sCvarMapName));
+		GetCurrentMap(sCurrentMapName, sizeof(sCurrentMapName));
 		
 		// If we are already on the default map, no map change
-		if( strcmp(currentmapname, DEFAULT_NEXT_MAP, false) )
+		if( strcmp(sCurrentMapName, sCvarMapName, false) )
 		{ 
-			PrintToServer("AutoMapChanger: time limit reached, commencing map change to %s now!", DEFAULT_NEXT_MAP);
-			if( IsMapValid(DEFAULT_NEXT_MAP) ) 
-				ServerCommand("changelevel %s", DEFAULT_NEXT_MAP);
-			return Plugin_Handled;
+			PrintToServer("L %s: [automapchanger.smx] Time limit reached, commencing map change to %s.", sFormattedTime, sCvarMapName);
+			if( IsMapValid(sCvarMapName) ) 
+			{
+				ServerCommand("changelevel %s", sCvarMapName);
+				return Plugin_Handled;
+			}
+			else
+			{
+				PrintToServer("L %s: [automapchanger.smx] Error: %s is not a valid map name.", sFormattedTime, sCvarMapName);
+				return Plugin_Handled;
+			}
 		}
 		else
 		{
-			PrintToServer("AutoMapChanger: time limit reached, map change aborted - already on default map (%s)", DEFAULT_NEXT_MAP);
+			PrintToServer("L %s: [automapchanger.smx] Time limit reached, map change aborted - already on default map (%s).", sFormattedTime, DEFAULT_NEXT_MAP);
 		}
 	}
 	return Plugin_Handled;
